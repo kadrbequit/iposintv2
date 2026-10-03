@@ -1,4 +1,8 @@
-
+#!/usr/bin/env python3
+"""
+🎯 IP OSINT Tool
+Kırmızı temalı, çoklu harita temalı, JSON export destekli IP sorgu aracı.
+"""
 from flask import Flask, render_template_string, request
 import requests
 
@@ -687,6 +691,131 @@ HTML_TEMPLATE = """
             border: 1px solid rgba(255,255,255,0.3);
         }
 
+        /* API Key butonu ve modalı */
+        .api-key-btn {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: var(--red-light);
+            padding: 0.3rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .api-key-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .api-key-btn.saved {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.5);
+            color: #6ee7b7;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 1rem;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--red-primary);
+            border-radius: 18px;
+            padding: 1.75rem;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(239, 68, 68, 0.4);
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        .modal h3 {
+            color: var(--red-light);
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .modal p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 0.85rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            outline: none;
+            margin-bottom: 1rem;
+        }
+
+        .modal input:focus { border-color: var(--red-primary); }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            border: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, var(--red-primary), var(--red-dark));
+            color: #fff;
+        }
+
+        .modal-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }
+
+        .modal-btn.secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .modal-btn.secondary:hover { background: rgba(239, 68, 68, 0.08); color: var(--text-primary); }
+
+        .modal-btn.danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .modal-btn.danger:hover { background: rgba(239, 68, 68, 0.25); }
+
         #map {
             height: 420px;
             width: 100%;
@@ -949,6 +1078,9 @@ HTML_TEMPLATE = """
                             <div class="map-hint">
                                 💡 <kbd>Tıkla</kbd> → IP sorgula
                             </div>
+                            <button class="api-key-btn" id="apiKeyBtn" onclick="openApiKeyModal()" title="CARTO API anahtarını ayarla">
+                                🔑 API Key
+                            </button>
                             <div class="map-theme-switcher" id="themeSwitcher">
                                 <button class="theme-btn active" data-theme="dark" onclick="changeMapTheme('dark')" title="Karanlık">
                                     <span class="dot" style="background:#111;"></span>Dark
@@ -999,6 +1131,25 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <!-- API Key Modal -->
+    <div class="modal-overlay" id="apiKeyModal">
+        <div class="modal">
+            <h3>🔑 CARTO API Anahtarı</h3>
+            <p>
+                Voyager, Dark ve Sade harita temaları için ücretsiz bir CARTO API anahtarı gerekir.<br>
+                <a href="https://carto.com/basemaps/apikey" target="_blank" style="color:#f87171;">Ücretsiz anahtar al →</a>
+                <br><br>
+                Anahtar sadece <strong>tarayıcında</strong> saklanır, hiçbir yere gönderilmez. Boş bırakırsan sadece OSM, Uydu ve Topo çalışır.
+            </p>
+            <input type="text" id="apiKeyInput" placeholder="cb1_xxxxx_xxxxx_xxxxx" spellcheck="false">
+            <div class="modal-actions">
+                <button class="modal-btn danger" onclick="clearApiKey()">Sil</button>
+                <button class="modal-btn secondary" onclick="closeApiKeyModal()">İptal</button>
+                <button class="modal-btn primary" onclick="saveApiKey()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 6 9 17l-5-5"/>
@@ -1007,6 +1158,71 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        /* ============================================
+           0. API KEY YÖNETİMİ (localStorage)
+           ============================================ */
+        const API_KEY_STORAGE = 'iposint_carto_key';
+
+        function getApiKey() {
+            return localStorage.getItem(API_KEY_STORAGE) || '';
+        }
+
+        function openApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            const input = document.getElementById('apiKeyInput');
+            input.value = getApiKey();
+            modal.classList.add('show');
+            input.focus();
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.remove('show');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem(API_KEY_STORAGE, key);
+                updateApiKeyBtn();
+                showToast('API anahtarı kaydedildi');
+                // Aktif temayı yeniden yükle
+                if (mapInstance) {
+                    loadTileLayer(currentTheme);
+                }
+            } else {
+                localStorage.removeItem(API_KEY_STORAGE);
+                updateApiKeyBtn();
+                showToast('API anahtarı silindi');
+                if (mapInstance) {
+                    loadTileLayer(currentTheme);
+                }
+            }
+            closeApiKeyModal();
+        }
+
+        function clearApiKey() {
+            localStorage.removeItem(API_KEY_STORAGE);
+            document.getElementById('apiKeyInput').value = '';
+            updateApiKeyBtn();
+            showToast('API anahtarı silindi');
+            if (mapInstance) {
+                loadTileLayer(currentTheme);
+            }
+            closeApiKeyModal();
+        }
+
+        function updateApiKeyBtn() {
+            const btn = document.getElementById('apiKeyBtn');
+            if (!btn) return;
+            if (getApiKey()) {
+                btn.classList.add('saved');
+                btn.innerHTML = '🔑 API Key ✓';
+            } else {
+                btn.classList.remove('saved');
+                btn.innerHTML = '🔑 API Key';
+            }
+        }
+
         /* ============================================
            1. YARDIMCI FONKSİYONLAR
            ============================================ */
@@ -1133,7 +1349,10 @@ HTML_TEMPLATE = """
             document.getElementById('queryForm').submit();
         }
 
-        window.addEventListener('DOMContentLoaded', renderHistory);
+        window.addEventListener('DOMContentLoaded', function() {
+            renderHistory();
+            updateApiKeyBtn();
+        });
 
         {% if result and result.success %}
         addToHistory({
@@ -1144,7 +1363,7 @@ HTML_TEMPLATE = """
         {% endif %}
 
         /* ============================================
-           4. HARİTA + TEMA SEÇİCİ
+           4. HARİTA + TEMA SEÇİCİ + API KEY
            ============================================ */
         let mapInstance = null;
         let tileLayer = null;
@@ -1153,37 +1372,44 @@ HTML_TEMPLATE = """
         let mapCircle = null;
         let mapCenter = null;
 
+        // Tema tanımları: CARTO temaları API key gerektirir, diğerleri gerektirmez.
         const MAP_THEMES = {
             dark: {
                 url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                attribution: '&copy; OpenStreetMap &copy; CARTO Dark',
-                filter: 'none'
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                filter: 'none',
+                requiresKey: true
             },
             voyager: {
                 url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                 attribution: '&copy; OpenStreetMap &copy; CARTO Voyager',
-                filter: 'none'
+                filter: 'none',
+                requiresKey: true
             },
             positron: {
                 url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                 attribution: '&copy; OpenStreetMap &copy; CARTO Positron',
-                filter: 'none'
+                filter: 'none',
+                requiresKey: true
             },
             osm: {
                 url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 attribution: '&copy; OpenStreetMap contributors',
-                filter: 'none'
+                filter: 'none',
+                requiresKey: false
             },
             satellite: {
                 url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 attribution: '&copy; Esri World Imagery',
                 filter: 'none',
+                requiresKey: false,
                 maxZoom: 19
             },
             topo: {
                 url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
                 attribution: '&copy; OpenTopoMap',
                 filter: 'none',
+                requiresKey: false,
                 maxZoom: 17
             }
         };
@@ -1209,14 +1435,12 @@ HTML_TEMPLATE = """
                 attributionControl: true
             });
 
-            // localStorage'dan tema tercihini yükle, yoksa dark
             const savedTheme = localStorage.getItem('iposint_map_theme');
             const initialTheme = (savedTheme && MAP_THEMES[savedTheme]) ? savedTheme : 'dark';
             loadTileLayer(initialTheme);
             updateThemeButtons(initialTheme);
             currentTheme = initialTheme;
 
-            // Kırmızı pin marker
             const redIcon = L.divIcon({
                 className: 'custom-marker',
                 html: '<div class="marker-pulse"></div><div class="marker-pin"></div>',
@@ -1245,7 +1469,6 @@ HTML_TEMPLATE = """
                 dashArray: '5, 10'
             }).addTo(mapInstance);
 
-            // Haritaya tıklama
             let clickMarker = null;
             mapInstance.on('click', function(e) {
                 const clickLat = e.latlng.lat.toFixed(4);
@@ -1277,7 +1500,6 @@ HTML_TEMPLATE = """
                 clickMarker.bindPopup(popupHtml, { className: 'custom-popup' }).openPopup();
             });
 
-            // Popup tema ayarı
             applyPopupTheme(initialTheme);
         });
 
@@ -1289,19 +1511,34 @@ HTML_TEMPLATE = """
                 mapInstance.removeLayer(tileLayer);
             }
 
+            let url = theme.url;
+            const apiKey = getApiKey();
+
+            // CARTO temaları için API key ekle
+            if (theme.requiresKey) {
+                if (!apiKey) {
+                    // API key yoksa kullanıcıya bilgi ver ve OSM'e düş
+                    console.warn('⚠️ CARTO API key gerekli. OSM temasına geçiliyor.');
+                    showToast('API key gerekli, OSM temasına geçildi', true);
+                    updateThemeButtons('osm');
+                    currentTheme = 'osm';
+                    return loadTileLayer('osm');
+                }
+                url += (url.includes('?') ? '&' : '?') + 'key=' + apiKey;
+            }
+
             const options = {
                 attribution: theme.attribution,
                 subdomains: 'abcd'
             };
             if (theme.maxZoom) options.maxZoom = theme.maxZoom;
 
-            tileLayer = L.tileLayer(theme.url, options).addTo(mapInstance);
+            tileLayer = L.tileLayer(url, options).addTo(mapInstance);
             tileLayer.bringToBack();
 
-            // Dark tema için container bg'yi siyah yap
             const mapContainer = document.getElementById('map');
             if (mapContainer) {
-                mapContainer.style.background = themeName === 'dark' ? '#000' : '#1a1a1a';
+                mapContainer.style.background = (themeName === 'dark') ? '#000' : '#1a1a1a';
             }
         }
 
@@ -1352,7 +1589,6 @@ HTML_TEMPLATE = """
                     .custom-popup .popup-title { color: #f87171 !important; }
                 `;
             }
-            // dark ve diğer temalar için varsayılan kırmızı tema geçerli
             document.head.appendChild(style);
         }
 
@@ -1503,6 +1739,15 @@ HTML_TEMPLATE = """
                 e.preventDefault();
                 copyResult();
             }
+            // ESC ile modal kapat
+            if (e.key === 'Escape') {
+                closeApiKeyModal();
+            }
+        });
+
+        // Modal dışına tıklayınca kapat
+        document.getElementById('apiKeyModal').addEventListener('click', function(e) {
+            if (e.target === this) closeApiKeyModal();
         });
     </script>
 </body>
@@ -1541,10 +1786,11 @@ def index():
 
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("  🎯  IP OSINT TOOL ")
+    print("  🎯  IP OSINT TOOL - Full Final v1.3")
     print("="*60)
     print("  ✨ Özellikler:")
     print("     • Kırmızı tema + 6 farklı harita teması")
+    print("     • 🔑 Kullanıcı kendi CARTO API key'ini girer")
     print("     • Sorgu geçmişi (localStorage)")
     print("     • Haritaya tıklayarak IP sorgulama")
     print("     • Proxy/VPN uyarı banner'ı")
