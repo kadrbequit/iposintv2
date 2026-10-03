@@ -11,9 +11,9 @@ Termux ve Linux için tasarlandı. Tamamen ücretsiz, API anahtarı gerektirmez.
 [![License](https://img.shields.io/badge/License-MIT-ef4444?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Termux%20%7C%20Linux-ef4444?style=for-the-badge&logo=linux&logoColor=white)](https://termux.dev/)
 
-[![Stars](https://img.shields.io/github/stars/KULLANICI_ADIN/ip-osint-tool?style=for-the-badge&color=ef4444)](https://github.com/KULLANICI_ADIN/ip-osint-tool/stargazers)
-[![Forks](https://img.shields.io/github/forks/KULLANICI_ADIN/ip-osint-tool?style=for-the-badge&color=ef4444)](https://github.com/KULLANICI_ADIN/ip-osint-tool/network/members)
-[![Issues](https://img.shields.io/github/issues/KULLANICI_ADIN/ip-osint-tool?style=for-the-badge&color=ef4444)](https://github.com/KULLANICI_ADIN/ip-osint-tool/issues)
+[![Stars](https://img.shields.io/github/stars/kadrbequit/iposintv2?style=for-the-badge&color=ef4444)](https://github.com/kadrbequit/iposintv2/stargazers)
+[![Forks](https://img.shields.io/github/forks/kadrbequit/iposintv2?style=for-the-badge&color=ef4444)](https://github.com/kadrbequit/iposintv2/network/members)
+[![Issues](https://img.shields.io/github/issues/kadrbequit/iposintv2?style=for-the-badge&color=ef4444)](https://github.com/kadrbequit/iposintv2/issues)
 
 </div>
 
@@ -112,8 +112,8 @@ Termux ve Linux için tasarlandı. Tamamen ücretsiz, API anahtarı gerektirmez.
 ```bash
 pkg update && pkg upgrade -y
 pkg install python git -y
-git clone https://github.com/KULLANICI_ADIN/ip-osint-tool.git
-cd ip-osint-tool
+git clone https://github.com/kadrbequit/iposintv2.git
+cd iposintv2
 pip install -r requirements.txt
 ```
 
@@ -125,8 +125,8 @@ pip install -r requirements.txt
 ```bash
 sudo apt update
 sudo apt install python3 python3-pip git -y
-git clone https://github.com/KULLANICI_ADIN/ip-osint-tool.git
-cd ip-osint-tool
+git clone https://github.com/kadrbequit/iposintv2.git
+cd iposintv2
 pip3 install -r requirements.txt
 ```
 
@@ -251,7 +251,7 @@ Haritada herhangi bir yere tıkla → o bölge için IP sorgu seçeneği çıkar
 ## 📁 Proje Yapısı
 
 ```
-ip-osint-tool/
+iposintv2/
 ├── app.py                 # 🐍 Ana Flask uygulaması
 ├── requirements.txt       # 📦 Python bağımlılıkları
 ├── README.md              # 📖 Bu dosya
@@ -378,7 +378,7 @@ Bu proje **MIT Lisansı** altında lisanslanmıştır. Detaylar için [LICENSE](
 
 ### ⭐ Bu projeyi faydalı bulduysan yıldız vermeyi unutma!
 
-**Yapımcı:** [@kadrbequit](https://github.com/KULLANICI_ADIN)
+**Yapımcı:** [@kadrbequit](https://github.com/kadrbequit)
 
 ![Made with ❤️ in Turkey](https://img.shields.io/badge/Made%20with%20%E2%9D%A4%EF%B8%8F%20in-Turkey-ef4444?style=for-the-badge)
 
