@@ -1,4 +1,5 @@
-from flask import Flask, render_template_string, request, jsonify
+
+from flask import Flask, render_template_string, request
 import requests
 
 app = Flask(__name__)
@@ -114,7 +115,6 @@ HTML_TEMPLATE = """
             animation: glowPulse 3s ease-in-out infinite;
         }
 
-        /* Uyarı banner */
         .alert-banner {
             display: flex;
             align-items: center;
@@ -314,7 +314,6 @@ HTML_TEMPLATE = """
             box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
         }
 
-        /* Geçmiş */
         .history-section {
             margin-bottom: 1.5rem;
             border: 1px solid var(--border);
@@ -429,7 +428,6 @@ HTML_TEMPLATE = """
 
         .history-item-delete:hover { background: rgba(239, 68, 68, 0.15); color: var(--red-light); }
 
-        /* Sonuç */
         .result {
             animation: fadeInUp 0.5s ease-out;
             border-radius: 16px;
@@ -461,7 +459,6 @@ HTML_TEMPLATE = """
 
         .result-header-title svg { color: var(--red-primary); }
 
-        /* Sonuç aksiyon butonları */
         .result-actions {
             display: flex;
             gap: 0.4rem;
@@ -503,7 +500,6 @@ HTML_TEMPLATE = """
             color: #6ee7b7;
         }
 
-        /* Toast */
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -645,17 +641,63 @@ HTML_TEMPLATE = """
             color: var(--red-light);
         }
 
+        .map-theme-switcher {
+            display: inline-flex;
+            gap: 0.2rem;
+            background: rgba(20, 8, 8, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.2rem;
+            backdrop-filter: blur(10px);
+            flex-wrap: wrap;
+        }
+
+        .theme-btn {
+            padding: 0.28rem 0.55rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            white-space: nowrap;
+        }
+
+        .theme-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .theme-btn.active {
+            background: linear-gradient(135deg, var(--red-primary), var(--red-dark));
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+        }
+
+        .theme-btn .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
         #map {
-            height: 380px;
+            height: 420px;
             width: 100%;
             border-radius: 12px;
             border: 1px solid var(--border);
             background: #000;
             box-shadow: 0 0 30px rgba(239, 68, 68, 0.12);
+            transition: all 0.3s ease;
         }
 
         .leaflet-container { background: #000 !important; font-family: 'Inter', sans-serif !important; }
-        .leaflet-tile { filter: brightness(0.55) saturate(0.65) hue-rotate(-15deg); }
         .leaflet-control-attribution { background: rgba(20, 8, 8, 0.85) !important; color: #7a5555 !important; font-size: 10px !important; }
         .leaflet-control-attribution a { color: var(--red-light) !important; }
         .leaflet-bar { border: 1px solid var(--border) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important; }
@@ -731,18 +773,19 @@ HTML_TEMPLATE = """
             form { flex-direction: column; }
             button[type="submit"] { justify-content: center; }
             .header-text h1 { font-size: 1.25rem; }
-            #map { height: 280px; }
+            #map { height: 320px; }
             .grid { grid-template-columns: 1fr 1fr; }
             .alert-banner { padding: 0.85rem 1rem; }
             .alert-icon { width: 34px; height: 34px; font-size: 1.1rem; }
             .result-header { padding: 0.85rem 1rem; }
             .action-btn { font-size: 0.68rem; padding: 0.35rem 0.6rem; }
+            .theme-btn { font-size: 0.6rem; padding: 0.22rem 0.45rem; }
+            .map-title { font-size: 0.72rem; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Uyarı Banner -->
         <div class="alert-banner" id="alertBanner" style="display: none;">
             <div class="alert-icon">⚠️</div>
             <div class="alert-text">
@@ -783,7 +826,6 @@ HTML_TEMPLATE = """
             <span class="chip" onclick="setIP('')">Kendi IP'm</span>
         </div>
 
-        <!-- Geçmiş -->
         <div class="history-section" id="historySection" style="display: none;">
             <div class="history-header" onclick="toggleHistory()">
                 <div class="history-title">
@@ -903,8 +945,30 @@ HTML_TEMPLATE = """
                             </svg>
                             Konum Haritası
                         </div>
-                        <div class="map-hint">
-                            💡 İpucu: <kbd>Haritaya tıkla</kbd> → o bölgedeki IP'yi sorgula
+                        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                            <div class="map-hint">
+                                💡 <kbd>Tıkla</kbd> → IP sorgula
+                            </div>
+                            <div class="map-theme-switcher" id="themeSwitcher">
+                                <button class="theme-btn active" data-theme="dark" onclick="changeMapTheme('dark')" title="Karanlık">
+                                    <span class="dot" style="background:#111;"></span>Dark
+                                </button>
+                                <button class="theme-btn" data-theme="voyager" onclick="changeMapTheme('voyager')" title="Açık Renkli">
+                                    <span class="dot" style="background:#f2e8d5;"></span>Voyager
+                                </button>
+                                <button class="theme-btn" data-theme="positron" onclick="changeMapTheme('positron')" title="Sade">
+                                    <span class="dot" style="background:#f0f0f0;"></span>Sade
+                                </button>
+                                <button class="theme-btn" data-theme="osm" onclick="changeMapTheme('osm')" title="Sokak Haritası">
+                                    <span class="dot" style="background:#a5d6a7;"></span>OSM
+                                </button>
+                                <button class="theme-btn" data-theme="satellite" onclick="changeMapTheme('satellite')" title="Uydu Görüntüsü">
+                                    <span class="dot" style="background:#2e7d32;"></span>Uydu
+                                </button>
+                                <button class="theme-btn" data-theme="topo" onclick="changeMapTheme('topo')" title="Topoğrafya">
+                                    <span class="dot" style="background:#d4a373;"></span>Topo
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div id="map" data-lat="{{ result.data.lat }}" data-lon="{{ result.data.lon }}" data-ip="{{ result.data.query }}" data-city="{{ result.data.city or 'Bilinmiyor' }}" data-country="{{ result.data.country or 'Bilinmiyor' }}"></div>
@@ -931,11 +995,10 @@ HTML_TEMPLATE = """
         {% endif %}
 
         <div class="footer">
-            Powered by <a href="https://ip-api.com" target="_blank">ip-api.com</a> • Harita: <a href="https://leafletjs.com" target="_blank">Leaflet</a> + <a href="https://carto.com" target="_blank">CARTO</a>
+            Powered by <a href="https://ip-api.com" target="_blank">ip-api.com</a> • Harita: <a href="https://leafletjs.com" target="_blank">Leaflet</a> + <a href="https://carto.com" target="_blank">CARTO</a> / <a href="https://www.openstreetmap.org" target="_blank">OSM</a> / <a href="https://www.esri.com" target="_blank">Esri</a>
         </div>
     </div>
 
-    <!-- Toast bildirimi -->
     <div class="toast" id="toast">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 6 9 17l-5-5"/>
@@ -1081,8 +1144,50 @@ HTML_TEMPLATE = """
         {% endif %}
 
         /* ============================================
-           4. HARİTA
+           4. HARİTA + TEMA SEÇİCİ
            ============================================ */
+        let mapInstance = null;
+        let tileLayer = null;
+        let currentTheme = 'dark';
+        let mapMarker = null;
+        let mapCircle = null;
+        let mapCenter = null;
+
+        const MAP_THEMES = {
+            dark: {
+                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                attribution: '&copy; OpenStreetMap &copy; CARTO Dark',
+                filter: 'none'
+            },
+            voyager: {
+                url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                attribution: '&copy; OpenStreetMap &copy; CARTO Voyager',
+                filter: 'none'
+            },
+            positron: {
+                url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                attribution: '&copy; OpenStreetMap &copy; CARTO Positron',
+                filter: 'none'
+            },
+            osm: {
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '&copy; OpenStreetMap contributors',
+                filter: 'none'
+            },
+            satellite: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '&copy; Esri World Imagery',
+                filter: 'none',
+                maxZoom: 19
+            },
+            topo: {
+                url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                attribution: '&copy; OpenTopoMap',
+                filter: 'none',
+                maxZoom: 17
+            }
+        };
+
         window.addEventListener('DOMContentLoaded', function() {
             const mapEl = document.getElementById('map');
             if (!mapEl) return;
@@ -1095,14 +1200,23 @@ HTML_TEMPLATE = """
 
             if (isNaN(lat) || isNaN(lon)) return;
 
-            const map = L.map('map', { center: [lat, lon], zoom: 10, zoomControl: true });
+            mapCenter = [lat, lon];
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap &copy; CARTO',
-                subdomains: 'abcd',
-                maxZoom: 20
-            }).addTo(map);
+            mapInstance = L.map('map', {
+                center: mapCenter,
+                zoom: 10,
+                zoomControl: true,
+                attributionControl: true
+            });
 
+            // localStorage'dan tema tercihini yükle, yoksa dark
+            const savedTheme = localStorage.getItem('iposint_map_theme');
+            const initialTheme = (savedTheme && MAP_THEMES[savedTheme]) ? savedTheme : 'dark';
+            loadTileLayer(initialTheme);
+            updateThemeButtons(initialTheme);
+            currentTheme = initialTheme;
+
+            // Kırmızı pin marker
             const redIcon = L.divIcon({
                 className: 'custom-marker',
                 html: '<div class="marker-pulse"></div><div class="marker-pin"></div>',
@@ -1111,7 +1225,7 @@ HTML_TEMPLATE = """
                 popupAnchor: [0, -24]
             });
 
-            const marker = L.marker([lat, lon], { icon: redIcon }).addTo(map);
+            mapMarker = L.marker(mapCenter, { icon: redIcon }).addTo(mapInstance);
 
             const popupContent = `
                 <div class="popup-title">📍 ${city}, ${country}</div>
@@ -1120,27 +1234,33 @@ HTML_TEMPLATE = """
                 <div>Lon: ${lon}</div>
             `;
 
-            marker.bindPopup(popupContent, { className: 'custom-popup' }).openPopup();
+            mapMarker.bindPopup(popupContent, { className: 'custom-popup' }).openPopup();
 
-            L.circle([lat, lon], {
-                color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.08,
-                radius: 30000, weight: 1, dashArray: '5, 10'
-            }).addTo(map);
+            mapCircle = L.circle(mapCenter, {
+                color: '#ef4444',
+                fillColor: '#ef4444',
+                fillOpacity: 0.08,
+                radius: 30000,
+                weight: 1,
+                dashArray: '5, 10'
+            }).addTo(mapInstance);
 
+            // Haritaya tıklama
             let clickMarker = null;
-            map.on('click', function(e) {
+            mapInstance.on('click', function(e) {
                 const clickLat = e.latlng.lat.toFixed(4);
                 const clickLon = e.latlng.lng.toFixed(4);
 
-                if (clickMarker) map.removeLayer(clickMarker);
+                if (clickMarker) mapInstance.removeLayer(clickMarker);
 
                 const clickIcon = L.divIcon({
                     className: 'custom-marker',
                     html: '<div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#f87171,#b91c1c);border:2px solid #fff;box-shadow:0 0 15px rgba(239,68,68,0.8);"></div>',
-                    iconSize: [18, 18], iconAnchor: [9, 9]
+                    iconSize: [18, 18],
+                    iconAnchor: [9, 9]
                 });
 
-                clickMarker = L.marker([clickLat, clickLon], { icon: clickIcon }).addTo(map);
+                clickMarker = L.marker([clickLat, clickLon], { icon: clickIcon }).addTo(mapInstance);
 
                 const popupHtml = `
                     <div class="popup-title">🎯 Tıklanan Konum</div>
@@ -1156,7 +1276,85 @@ HTML_TEMPLATE = """
 
                 clickMarker.bindPopup(popupHtml, { className: 'custom-popup' }).openPopup();
             });
+
+            // Popup tema ayarı
+            applyPopupTheme(initialTheme);
         });
+
+        function loadTileLayer(themeName) {
+            const theme = MAP_THEMES[themeName];
+            if (!theme || !mapInstance) return;
+
+            if (tileLayer) {
+                mapInstance.removeLayer(tileLayer);
+            }
+
+            const options = {
+                attribution: theme.attribution,
+                subdomains: 'abcd'
+            };
+            if (theme.maxZoom) options.maxZoom = theme.maxZoom;
+
+            tileLayer = L.tileLayer(theme.url, options).addTo(mapInstance);
+            tileLayer.bringToBack();
+
+            // Dark tema için container bg'yi siyah yap
+            const mapContainer = document.getElementById('map');
+            if (mapContainer) {
+                mapContainer.style.background = themeName === 'dark' ? '#000' : '#1a1a1a';
+            }
+        }
+
+        function updateThemeButtons(themeName) {
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === themeName);
+            });
+        }
+
+        function changeMapTheme(themeName) {
+            if (!MAP_THEMES[themeName]) return;
+            currentTheme = themeName;
+
+            loadTileLayer(themeName);
+            updateThemeButtons(themeName);
+            applyPopupTheme(themeName);
+
+            localStorage.setItem('iposint_map_theme', themeName);
+        }
+
+        function applyPopupTheme(themeName) {
+            const existing = document.getElementById('popup-theme-override');
+            if (existing) existing.remove();
+
+            const style = document.createElement('style');
+            style.id = 'popup-theme-override';
+
+            const lightThemes = ['voyager', 'positron', 'osm', 'topo'];
+            if (lightThemes.includes(themeName)) {
+                style.textContent = `
+                    .custom-popup .leaflet-popup-content-wrapper {
+                        background: rgba(255, 255, 255, 0.98) !important;
+                        color: #1a0a0a !important;
+                        border: 1px solid #ef4444 !important;
+                        box-shadow: 0 8px 30px rgba(239, 68, 68, 0.4) !important;
+                    }
+                    .custom-popup .leaflet-popup-content { color: #1a0a0a !important; }
+                    .custom-popup .popup-title { color: #b91c1c !important; }
+                    .custom-popup .leaflet-popup-tip { background: #ef4444 !important; }
+                `;
+            } else if (themeName === 'satellite') {
+                style.textContent = `
+                    .custom-popup .leaflet-popup-content-wrapper {
+                        background: rgba(20, 8, 8, 0.95) !important;
+                        color: #ffe8e8 !important;
+                        border: 1px solid #ef4444 !important;
+                    }
+                    .custom-popup .popup-title { color: #f87171 !important; }
+                `;
+            }
+            // dark ve diğer temalar için varsayılan kırmızı tema geçerli
+            document.head.appendChild(style);
+        }
 
         async function queryNearbyIP(lat, lon) {
             const confirmed = confirm(
@@ -1293,7 +1491,9 @@ HTML_TEMPLATE = """
             toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // Klavye kısayolları
+        /* ============================================
+           7. KLAVYE KISAYOLLARI
+           ============================================ */
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 's' && RESULT_DATA) {
                 e.preventDefault();
@@ -1341,10 +1541,10 @@ def index():
 
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("  🎯  KADRBEQUIT IP OSINT TOOL ")
+    print("  🎯  IP OSINT TOOL ")
     print("="*60)
     print("  ✨ Özellikler:")
-    print("     • Kırmızı tema + siyah harita")
+    print("     • Kırmızı tema + 6 farklı harita teması")
     print("     • Sorgu geçmişi (localStorage)")
     print("     • Haritaya tıklayarak IP sorgulama")
     print("     • Proxy/VPN uyarı banner'ı")
